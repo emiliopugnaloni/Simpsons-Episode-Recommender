@@ -2,7 +2,7 @@ from pathlib import Path
 from scraper.nohomer_scraper import NoHomerScraper
 
 
-def test_parse_episode_links_from_real_fixture_extracts_expected_entries():
+def test_parse_episode_links_extracts_expected_entries():
     fixture_path = Path("tests/fixtures/html/nohomer_forum_index.html")
     html = fixture_path.read_text(encoding="utf-8")
 

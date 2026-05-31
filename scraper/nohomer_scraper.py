@@ -28,7 +28,8 @@ class NoHomerScraper:
         self.scrape_timestamp = time.strftime("%Y%m%d_%H%M")
         self.warnings_csv_path = os.path.join(self.warnings_dir, f"{self.scrape_timestamp}.csv")
 
-    def add_warning(self, warnings: list, episode_name: str, url: str, warning_type: str, detail: str = None) -> None:
+    def add_warning(self, warnings: list, episode_name: str, 
+                    url: str, warning_type: str, detail: str = None) -> None:
         """Adds a warning row using a normalized schema."""
         warnings.append(
             {
@@ -39,6 +40,24 @@ class NoHomerScraper:
                 "detail": detail,
             }
         )
+
+    def parse_episode_links_from_html(self, html_text: str) -> list:
+        """Parses episode names and URLs from the main NoHomers forum HTML."""
+        soup = BeautifulSoup(html_text, "html.parser")
+        first_post = soup.find("article", {"id": "js-post-172093"})
+        if first_post is None:
+            return []
+
+        episode_link_tags = first_post.find_all("a", class_="link link--internal")
+
+        results = []
+        for episode_link in episode_link_tags:
+            episode_url = episode_link.get("href")
+            episode_name = episode_link.text.strip()
+            if episode_url and episode_name:
+                results.append((episode_name, episode_url))
+
+        return results
 
     def scrape_episode_links(self) -> None:
         try:
@@ -51,15 +70,7 @@ class NoHomerScraper:
             print(f"Error fetching episode review links: HTTP {response.status_code}")
             return
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        first_post = soup.find("article", {"id": "js-post-172093"})
-        episode_link_tags = first_post.find_all("a", class_="link link--internal")
-
-        results = []
-        for episode_link in episode_link_tags:
-            episode_url = episode_link.get("href")
-            episode_name = episode_link.text.strip()
-            results.append((episode_name, episode_url))
+        results = self.parse_episode_links_from_html(response.text)
        
         print(f"Total episodes found: {len(results)}")
         self.episode_links_df = pd.DataFrame(results, columns=["episode_name", "episode_url"])
@@ -92,7 +103,8 @@ class NoHomerScraper:
 
     def sanitize_episode_name(self, episode_name: str) -> str:
         """Sanitizes an episode name by replacing spaces, slashes, etc. with underscores."""
-        unwanted_characters = [" ", "/", ":", "?", "*", '"', "<", ">", "|", ",", ".", "(", ")", "[", "]"]
+        unwanted_characters = [" ", "/", ":", "?", "*", '"', "<", 
+                               ">", "|", ",", ".", "(", ")", "[", "]"]
         for char in unwanted_characters:
             episode_name = episode_name.replace(char, "_")
         return episode_name
@@ -152,7 +164,7 @@ class NoHomerScraper:
                 f"{self.episode_reviews_dir}{sanitized_episode_name}.csv"
             ):
                 print(
-                    f"Skipping episode {i + 1}/{total_episodes}: {episode_name:<120} (already scraped)",
+                    f"Skipping episode {i + 1}/{total_episodes}: {episode_name:<120}",
                     end="\r"
                 )
                 continue
@@ -171,7 +183,8 @@ class NoHomerScraper:
                 continue
 
             if response.status_code != 200:
-                self.add_warning(warnings, episode_name, url, "request_error_url", detail=f"HTTP {response.status_code}")
+                self.add_warning(warnings, episode_name, url, "request_error_url", 
+                                 detail=f"HTTP {response.status_code}")
                 print(f"--- Error fetching episode reviews: HTTP {response.status_code}")
                 time.sleep(random.uniform(1, 3))
                 continue

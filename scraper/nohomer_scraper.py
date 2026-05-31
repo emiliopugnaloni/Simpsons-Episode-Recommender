@@ -1,3 +1,9 @@
+"""
+Scraper for NoHomers.net episode reviews.
+Scrapes episode review links and per-episode reviewer ratings.
+Outputs are saved to scraper/tmp/.
+"""
+
 import os
 import random
 import time
@@ -12,64 +18,77 @@ class NoHomerScraper:
 
     def __init__(
         self,
-        dir_scraped_episode_reviews_folder: str = "./scraper/tmp/episodes_reviews/",
-        dir_scraped_url_episodes_reviews: str = "./scraper/tmp/episodes_reviews_links.csv",
-        dir_scraping_warnings: str = "./scraper/tmp/warnings_reviews.csv",
+        episode_reviews_dir: str = "./scraper/tmp/episodes_reviews/",
+        episode_links_csv_path: str = "./scraper/tmp/episodes_reviews_links.csv",
+        warnings_dir: str = "./scraper/tmp/warnings_reviews/",
     ) -> None:
-        self.dir_scraped_episode_reviews_folder = dir_scraped_episode_reviews_folder
-        self.dir_scraped_url_episodes_reviews = dir_scraped_url_episodes_reviews
-        self.dir_scraping_warnings = dir_scraping_warnings
+        self.episode_reviews_dir = episode_reviews_dir
+        self.episode_links_csv_path = episode_links_csv_path
+        self.warnings_dir = warnings_dir
+        self.scrape_timestamp = time.strftime("%Y%m%d_%H%M")
+        self.warnings_csv_path = os.path.join(self.warnings_dir, f"{self.scrape_timestamp}.csv")
 
-    def scrape_episode_reviews_links(self) -> None:
-        response = requests.get(self.BASE_URL)
+    def add_warning(self, warnings: list, episode_name: str, url: str, warning_type: str, detail: str = None) -> None:
+        """Adds a warning row using a normalized schema."""
+        warnings.append(
+            {
+                "scrape_time": self.scrape_timestamp,
+                "episode_name": episode_name,
+                "url": url,
+                "warning_type": warning_type,
+                "detail": detail,
+            }
+        )
+
+    def scrape_episode_links(self) -> None:
+        try:
+            response = requests.get(self.BASE_URL, timeout=20)
+        except requests.RequestException as error:
+            print(f"Error fetching episode review links: {error}")
+            return
+
+        if response.status_code != 200:
+            print(f"Error fetching episode review links: HTTP {response.status_code}")
+            return
+
         soup = BeautifulSoup(response.text, "html.parser")
         first_post = soup.find("article", {"id": "js-post-172093"})
-        first_post_links = first_post.find_all("a", class_="link link--internal")
+        episode_link_tags = first_post.find_all("a", class_="link link--internal")
 
         results = []
-        for first_post_link in first_post_links:
-            episode_link = first_post_link.get("href")
-            episode_name = first_post_link.text.strip()
-            results.append((episode_name, episode_link))
-
+        for episode_link in episode_link_tags:
+            episode_url = episode_link.get("href")
+            episode_name = episode_link.text.strip()
+            results.append((episode_name, episode_url))
+       
         print(f"Total episodes found: {len(results)}")
-        df = pd.DataFrame(results, columns=["episode_name", "episode_link"])
-        os.makedirs(os.path.dirname(self.dir_scraped_url_episodes_reviews), exist_ok=True)
-        df.to_csv(self.dir_scraped_url_episodes_reviews, index=False, sep="|")
+        self.episode_links_df = pd.DataFrame(results, columns=["episode_name", "episode_url"])
+        os.makedirs(os.path.dirname(self.episode_links_csv_path), exist_ok=True)
+        self.episode_links_df.to_csv(self.episode_links_csv_path, index=False, sep="|")
 
-    def find_rating_number(self, rating_text: str):
-        """Converts a rating text into a numerical rating."""
-        if ("5/5" in rating_text) | ("V/V" in rating_text) | (rating_text.startswith("5")):
-            rating_number = 5
-        elif ("4/5" in rating_text) | ("IV/V" in rating_text) | (rating_text.startswith("4")):
-            rating_number = 4
-        elif ("3/5" in rating_text) | ("III/V" in rating_text) | (rating_text.startswith("3")):
-            rating_number = 3
-        elif ("2/5" in rating_text) | ("II/V" in rating_text) | (rating_text.startswith("2")):
-            rating_number = 2
-        elif ("1/5" in rating_text) | ("I/V" in rating_text) | (rating_text.startswith("1")):
-            rating_number = 1
-        elif rating_text.startswith("10"):
-            rating_number = 10
-        else:
-            rating_number = None
 
-        return rating_number
-
-    def scrape_rating_reviewers(self, url: str, rating_number: int) -> list:
+    def scrape_rating_reviewers(self, url: str, rating_text: int):
         """Scrapes reviewers for a given hidden rating URL."""
-        r = requests.get(url)
-        soup = BeautifulSoup(r.text, "html.parser")
+        try:
+            response = requests.get(url, timeout=20)
+        except requests.RequestException as error:
+            return [], str(error)
+
+        if response.status_code != 200:
+            return [], f"HTTP {response.status_code}"
+
+        soup = BeautifulSoup(response.text, "html.parser")
         reviewers = soup.find_all("a", {"class": "username"})
 
-        rating_reviewers_results = []
+        results = []
         for reviewer in reviewers:
             user_id = reviewer["data-user-id"]
             username = reviewer.text.strip()
             user_url = "https://nohomers.net" + reviewer["href"]
-            rating_reviewers_results.append((rating_number, user_id, username, user_url))
+            results.append((rating_text, user_id, username, user_url))
 
-        return rating_reviewers_results
+        return results, None
+
 
     def sanitize_episode_name(self, episode_name: str) -> str:
         """Sanitizes an episode name by replacing spaces, slashes, etc. with underscores."""
@@ -77,126 +96,139 @@ class NoHomerScraper:
         for char in unwanted_characters:
             episode_name = episode_name.replace(char, "_")
         return episode_name
+    
 
-    def summarize_scrape_reviews_warnings(self) -> None:
+    def summarize_scrape_warnings(self) -> None:
         """Summarizes the warnings by episode and type of warning."""
-        warnings_df = pd.read_csv(self.dir_scraping_warnings, sep="|")
+        if not os.path.isfile(self.warnings_csv_path):
+            print("No warnings file found.")
+            return
 
-        for warning_type in ["unrecognized_rating_text", "missing_reviewers_info_for_rating"]:
-            if warning_type not in warnings_df.columns:
-                print(f"Episodes with {warning_type}: []")
-                continue
+        warnings_df = pd.read_csv(self.warnings_csv_path, sep="|")
 
-            episodes_list = (
-                warnings_df.loc[
-                    warnings_df[warning_type].notnull(),
-                    "episode_name",
-                ]
-                .unique()
-                .tolist()
-            )
-            print(f"Episodes with {warning_type}: {episodes_list}")
+        summary_df = (
+            warnings_df.groupby("warning_type", dropna=False)["episode_name"]
+            .nunique()
+            .reset_index(name="episodes_count")
+            .sort_values("episodes_count", ascending=False)
+        )
+        
+        print("\nScrape Warnings Summary:")
+        for _, row in summary_df.iterrows():
+            print(f"---{int(row['episodes_count'])} episodes with {row['warning_type']}")
 
-    def scrape_episode_reviews(self, filter_episodes_ratings_visited: bool = False) -> None:
-        episodes_reviews_link = pd.read_csv(self.dir_scraped_url_episodes_reviews, sep="|")
-        warnings_reviews = []
 
-        for i, episode_reviews_link in episodes_reviews_link.iterrows():
-            episode_name, url = episode_reviews_link
+    def delete_episode_files_with_retryable_warnings(self) -> None:
+        '''Episodes with selected warnings are deleted to allow a new scraping attempt 
+        in the next run (e.g., those with request errors).'''
+
+        warning_types_to_retry = ["request_error_url", "request_error_rating_url"]
+
+        warnings_df = pd.read_csv(self.warnings_csv_path, sep="|")
+        episode_names = warnings_df[
+            warnings_df.warning_type.isin(warning_types_to_retry)
+            ].episode_name.unique()
+
+        for episode_name in episode_names:
             sanitized_episode_name = self.sanitize_episode_name(episode_name)
+            episode_file_path = f"{self.episode_reviews_dir}{sanitized_episode_name}.csv"
+            if os.path.isfile(episode_file_path):
+                os.remove(episode_file_path)
+                print(f"Deleted scraped reviews file for episode '{episode_name}' due to warnings.")
+        
 
-            if filter_episodes_ratings_visited and os.path.exists(
-                f"{self.dir_scraped_episode_reviews_folder}{sanitized_episode_name}.csv"
+    def scrape_episode_reviews(self, skip_existing_episodes: bool = False) -> None:
+
+        warnings = []
+        episode_links_df = pd.read_csv(self.episode_links_csv_path, sep="|")
+        total_episodes = len(episode_links_df)
+
+
+        for i, episode_link in episode_links_df.iterrows():
+            episode_name, url = episode_link
+            sanitized_episode_name = self.sanitize_episode_name(episode_name)
+            
+            if skip_existing_episodes and os.path.exists(
+                f"{self.episode_reviews_dir}{sanitized_episode_name}.csv"
             ):
                 print(
-                    f"Skipping episode {i + 1}/{len(episodes_reviews_link)}: {episode_name} (already scraped)",
-                    flush=True,
+                    f"Skipping episode {i + 1}/{total_episodes}: {episode_name:<120} (already scraped)",
+                    end="\r"
                 )
                 continue
 
             print(
-                f"Scraping reviews for episode {i + 1}/{len(episodes_reviews_link)}: {episode_name}",
-                flush=True,
+                f"Scraping episode {i + 1}/{total_episodes}: {episode_name:<120}",
+                end="\r"
             )
-            time.sleep(random.uniform(0.2, 0.8))
+            time.sleep(random.uniform(1, 3))
 
-            r = requests.get(url)
-            soup = BeautifulSoup(r.text, "html.parser")
+            try:
+                response = requests.get(url, timeout=20)
+            except requests.RequestException as error:
+                self.add_warning(warnings, episode_name, url, "request_error_url", detail=str(error))
+                time.sleep(random.uniform(1, 3))
+                continue
+
+            if response.status_code != 200:
+                self.add_warning(warnings, episode_name, url, "request_error_url", detail=f"HTTP {response.status_code}")
+                print(f"--- Error fetching episode reviews: HTTP {response.status_code}")
+                time.sleep(random.uniform(1, 3))
+                continue
+
+            # The reviews are on a table. Each one at a different row.
+            soup = BeautifulSoup(response.text, "html.parser")
             reviews_table = soup.find("ul", {"class": "listPlain"})
 
             episode_reviews = []
             for review in reviews_table.find_all("li"):
+
                 rating_text = review.text.strip().split()[0]
-                rating_number = self.find_rating_number(rating_text)
 
-                if rating_number == 10:
-                    warnings_reviews.append(
-                        {
-                            "episode_name": episode_name,
-                            "url": url,
-                            "rating_text_with_10": True,
-                        }
-                    )
+                # The reviewers are on a hidden link that needs to be scraped (if accesible)
+                reviewers_panel  = review.find("div", {"class": "pollResult-voters"})
+                if reviewers_panel  is None:
+                    self.add_warning(warnings, episode_name, url, "missing_reviewer_info")
                     continue
 
-                if rating_number is None:
-                    warnings_reviews.append(
-                        {
-                            "episode_name": episode_name,
-                            "url": url,
-                            "unrecognized_rating_text": rating_text,
-                        }
+                rating_reviewers_url = "https://nohomers.net" + reviewers_panel["data-href"]
+                rating_reviewers, request_error = self.scrape_rating_reviewers(rating_reviewers_url, rating_text)
+
+                if request_error is not None:
+                    self.add_warning(
+                        warnings,
+                        episode_name,
+                        rating_reviewers_url,
+                        "request_error_rating_url",
+                        detail=request_error,
                     )
+                    time.sleep(random.uniform(1, 3))
                     continue
-
-                cant_reviews = review.text.strip().split()[-2]
-                if cant_reviews == 0:
-                    continue
-
-                rating_reviewers_element = review.find("div", {"class": "pollResult-voters"})
-                if rating_reviewers_element is None:
-                    warnings_reviews.append(
-                        {
-                            "episode_name": episode_name,
-                            "url": url,
-                            "missing_reviewers_info_for_rating": rating_text,
-                        }
-                    )
-                    continue
-
-                rating_reviewers_url = "https://nohomers.net" + rating_reviewers_element["data-href"]
-                rating_reviewers = self.scrape_rating_reviewers(rating_reviewers_url, rating_number)
-
-                if len(rating_reviewers) != int(cant_reviews):
-                    warnings_reviews.append(
-                        {
-                            "episode_name": episode_name,
-                            "url": url,
-                            "mismatched_reviews_cant": True,
-                        }
-                    )
 
                 episode_reviews.extend(rating_reviewers)
 
+
             episode_reviews_df = pd.DataFrame(
                 episode_reviews,
-                columns=["rating_number", "user_id", "username", "user_url"],
+                columns=["rating_text", "user_id", "username", "user_url"],
             )
+
             episode_reviews_df["episode_name"] = episode_name
-            os.makedirs(self.dir_scraped_episode_reviews_folder, exist_ok=True)
+            os.makedirs(self.episode_reviews_dir, exist_ok=True)
             episode_reviews_df.to_csv(
-                f"{self.dir_scraped_episode_reviews_folder}{sanitized_episode_name}.csv",
+                f"{self.episode_reviews_dir}{sanitized_episode_name}.csv",
                 index=False,
                 sep="|",
             )
-
-        warnings_reviews_df = pd.DataFrame(warnings_reviews)
-        os.makedirs(os.path.dirname(self.dir_scraping_warnings), exist_ok=True)
-        warnings_reviews_df.to_csv(self.dir_scraping_warnings, index=False, sep="|")
+                
+        warnings_df = pd.DataFrame(warnings)
+        os.makedirs(self.warnings_dir, exist_ok=True)
+        warnings_df.to_csv(self.warnings_csv_path, index=False, sep="|")
 
 
 if __name__ == "__main__":
     scraper = NoHomerScraper()
-    scraper.scrape_episode_reviews_links()
-    scraper.scrape_episode_reviews(filter_episodes_ratings_visited=True)
-    scraper.summarize_scrape_reviews_warnings()
+    scraper.scrape_episode_links()
+    scraper.scrape_episode_reviews(skip_existing_episodes=True)
+    scraper.summarize_scrape_warnings()
+    scraper.delete_episode_files_with_retryable_warnings()

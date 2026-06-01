@@ -3,8 +3,10 @@ import re
 import pandas as pd
 import json
 
-scraped_episode_reviews_dir = "./scraper/tmp/episodes_reviews"
-reviewers_path = "./etl/tmp/reviewers.csv"
+
+SCRAPED_EPISODE_REVIEWS_DIR = "./scraper/tmp/episodes_reviews"
+REVIEWS_PATH = "./etl/tmp/reviews.csv"
+WARNINGS_PATH = "./etl/tmp/warnings.json"
 
 
 def load_reviews(scraped_episode_reviews_dir):
@@ -39,6 +41,7 @@ def get_episodes_with_10_scale_ratings(df_reviews):
         .to_list()
     )
     return episodes_with_10_scale
+
 
 def filter_episodes_with_10_scale_ratings(df_reviews, episodes_with_10_scale):
 
@@ -123,23 +126,29 @@ def get_parsing_results(df_reviews):
     )
     return rating_text_by_rating
 
+
 def save_json(data, path):
     with open(path, "w") as f:
         json.dump(data, f, indent=4)
 
+
 def save_csv(data, path):
     data.to_csv(path, index=False, sep="|")
 
-warnings = {}
-df_reviews = load_reviews(scraped_episode_reviews_dir)
-episodes_with_10_scale = get_episodes_with_10_scale_ratings(df_reviews)
-warnings.update({"episodes_with_10_scale": episodes_with_10_scale})
-df_reviews = filter_episodes_with_10_scale_ratings(df_reviews, episodes_with_10_scale)
-df_reviews = add_rating_column(df_reviews)
-episodes_with_unparsed_ratings = get_episodes_with_unparsed_ratings(df_reviews)
-warnings.update({"episodes_with_unparsed_ratings": episodes_with_unparsed_ratings})
-df_reviews = filter_episodes_with_unparsed_ratings(df_reviews, episodes_with_unparsed_ratings)
-rating_text_by_rating = get_parsing_results(df_reviews)
-warnings.update({"rating_text_by_rating": rating_text_by_rating})
-save_json(rating_text_by_rating, "./etl/tmp/rating_text_by_rating.json")
-save_csv(df_reviews, "./etl/tmp/reviews.csv")
+
+if __name__ == "__main__":
+
+    warnings = {}
+    df_reviews = load_reviews(SCRAPED_EPISODE_REVIEWS_DIR)
+    episodes_with_10_scale = get_episodes_with_10_scale_ratings(df_reviews)
+    warnings.update({"episodes_with_10_scale": episodes_with_10_scale})
+    df_reviews = filter_episodes_with_10_scale_ratings(df_reviews, episodes_with_10_scale)
+    df_reviews = add_rating_column(df_reviews)
+    episodes_with_unparsed_ratings = get_episodes_with_unparsed_ratings(df_reviews)
+    warnings.update({"episodes_with_unparsed_ratings": episodes_with_unparsed_ratings})
+    df_reviews = filter_episodes_with_unparsed_ratings(df_reviews, episodes_with_unparsed_ratings)
+    rating_text_by_rating = get_parsing_results(df_reviews)
+    warnings.update({"rating_text_by_rating": rating_text_by_rating})
+    save_json(rating_text_by_rating, "./etl/tmp/rating_text_by_rating.json")
+    save_json(warnings, WARNINGS_PATH)
+    save_csv(df_reviews, REVIEWS_PATH)

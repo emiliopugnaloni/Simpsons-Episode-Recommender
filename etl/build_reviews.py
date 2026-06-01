@@ -112,7 +112,7 @@ def filter_episodes_with_unparsed_ratings(df_reviews, episodes_with_unparsed_rat
     return df_reviews
 
 
-def get_parsing_results(df_reviews):
+def get_parsing_summary_results(df_reviews):
     '''
     Get parsing results. This is a dictionary with rating as key and a list of 
     rating_text that were parsed to that rating as value.
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     episodes_with_unparsed_ratings = get_episodes_with_unparsed_ratings(df_reviews)
     warnings.update({"episodes_with_unparsed_ratings": episodes_with_unparsed_ratings})
     df_reviews = filter_episodes_with_unparsed_ratings(df_reviews, episodes_with_unparsed_ratings)
-    rating_text_by_rating = get_parsing_results(df_reviews)
+    rating_text_by_rating = get_parsing_summary_results(df_reviews)
     warnings.update({"rating_text_by_rating": rating_text_by_rating})
     save_json(rating_text_by_rating, "./etl/tmp/rating_text_by_rating.json")
     save_json(warnings, WARNINGS_PATH)

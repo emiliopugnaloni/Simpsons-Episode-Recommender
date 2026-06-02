@@ -19,7 +19,7 @@ class WikiSimpsonScraper:
     def __init__(
         self,
         base_url: str = "https://simpsonswiki.com/",
-        episodes_link_path: str = "./scraper/tmp/episodes_data_links.csv",
+        episodes_link_path: str = "./scraper/tmp/episodes_data_links_2.csv",
         episodes_data_dir: str = "./scraper/tmp/episodes_data/",
         warnings_dir: str = "./scraper/tmp/warnings_data/",
     ) -> None:
@@ -70,7 +70,7 @@ class WikiSimpsonScraper:
         for row in rows:
             # Each episode row has exactly 4 cells.
             cells = row.find_all("td")
-            if len(cells) != 4:
+            if len(cells) not in (3, 4):
                 continue
 
             first_cell = cells[0]
@@ -225,7 +225,7 @@ class WikiSimpsonScraper:
 
 if __name__ == "__main__":
     scraper = WikiSimpsonScraper()
-    #scraper.scrape_episodes_links()
+    scraper.scrape_episodes_links()
     scraper.scrape_episodes_data(skip_existing_episodes=True)
 
 

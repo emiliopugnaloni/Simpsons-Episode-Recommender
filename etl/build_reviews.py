@@ -6,7 +6,7 @@ import json
 
 SCRAPED_EPISODE_REVIEWS_DIR = "./scraper/tmp/episodes_reviews"
 REVIEWS_PATH = "./etl/tmp/reviews.csv"
-WARNINGS_PATH = "./etl/tmp/warnings.json"
+WARNINGS_PATH = "./etl/tmp/warnings_reviews.json"
 
 
 def load_reviews(scraped_episode_reviews_dir):
@@ -136,8 +136,7 @@ def save_csv(data, path):
     data.to_csv(path, index=False, sep="|")
 
 
-if __name__ == "__main__":
-
+def build_reviews():
     warnings = {}
     df_reviews = load_reviews(SCRAPED_EPISODE_REVIEWS_DIR)
     episodes_with_10_scale = get_episodes_with_10_scale_ratings(df_reviews)
@@ -149,6 +148,10 @@ if __name__ == "__main__":
     df_reviews = filter_episodes_with_unparsed_ratings(df_reviews, episodes_with_unparsed_ratings)
     rating_text_by_rating = get_parsing_summary_results(df_reviews)
     warnings.update({"rating_text_by_rating": rating_text_by_rating})
-    save_json(rating_text_by_rating, "./etl/tmp/rating_text_by_rating.json")
     save_json(warnings, WARNINGS_PATH)
     save_csv(df_reviews, REVIEWS_PATH)
+
+
+if __name__ == "__main__":
+    build_reviews()
+

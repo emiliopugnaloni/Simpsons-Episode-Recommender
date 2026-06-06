@@ -10,7 +10,10 @@ def test_parse_episode_links_extracts_expected_entries():
     results = scraper.parse_episode_links_from_html(html)
 
     assert len(results) > 100
-    assert ("Bart the Genius", "https://nohomers.net/forums/index.php?threads/rate-review-bart-the-genius.22736/") in results
+    assert (
+        "Bart the Genius",
+        "https://nohomers.net/forums/index.php?threads/rate-review-bart-the-genius.22736/",
+    ) in results
 
     for episode_name, episode_url in results:
         assert episode_name

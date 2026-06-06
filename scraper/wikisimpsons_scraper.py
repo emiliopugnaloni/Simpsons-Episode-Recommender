@@ -30,8 +30,9 @@ class WikiSimpsonScraper:
         self.warnings_dir = warnings_dir
 
         self.scrape_timestamp = time.strftime("%Y%m%d_%H%M")
-        self.warnings_csv_path = os.path.join(self.warnings_dir, f"{self.scrape_timestamp}.csv")
-
+        self.warnings_csv_path = os.path.join(
+            self.warnings_dir, f"{self.scrape_timestamp}.csv"
+        )
 
     def add_warning(
         self,
@@ -49,7 +50,6 @@ class WikiSimpsonScraper:
                 "detail": detail,
             }
         )
-
 
     def scrape_episodes_links(self) -> None:
         try:
@@ -91,14 +91,28 @@ class WikiSimpsonScraper:
         os.makedirs(os.path.dirname(self.episodes_link_path), exist_ok=True)
         episodes_link_df.to_csv(self.episodes_link_path, index=False, sep="|")
 
-
     def sanitize_episode_name(self, episode_name: str) -> str:
         """Sanitizes an episode name by replacing unsupported characters with underscores."""
-        unwanted_characters = [" ", "/", ":", "?", "*", '"', "<", ">", "|", ",", ".", "(", ")", "[", "]"]
+        unwanted_characters = [
+            " ",
+            "/",
+            ":",
+            "?",
+            "*",
+            '"',
+            "<",
+            ">",
+            "|",
+            ",",
+            ".",
+            "(",
+            ")",
+            "[",
+            "]",
+        ]
         for char in unwanted_characters:
             episode_name = episode_name.replace(char, "_")
         return episode_name
-    
 
     def scrape_right_panel(self, soup: BeautifulSoup) -> dict:
         """Scrapes the right panel of the episode page, with main episode info."""
@@ -122,11 +136,15 @@ class WikiSimpsonScraper:
             values_data = episode_info_row.find_all("td")
 
             if len(attribute) == 1 and len(values_data) == 1:
-                attribute_name = attribute[0].get_text(strip=True).lower().replace(" |:", "_")
+                attribute_name = (
+                    attribute[0].get_text(strip=True).lower().replace(" |:", "_")
+                )
                 attribute_values = values_data[0].find_all("a")
 
                 if len(attribute_values) > 0:
-                    attribute_values_list = [a.get_text(strip=True) for a in attribute_values]
+                    attribute_values_list = [
+                        a.get_text(strip=True) for a in attribute_values
+                    ]
                 else:
                     attribute_values_list = [values_data[0].get_text(strip=True)]
 
@@ -134,25 +152,26 @@ class WikiSimpsonScraper:
 
         return right_panel_data
 
-
     def scrape_synopsis(self, soup: BeautifulSoup) -> str:
         """Scrapes the synopsis section for an episode page."""
 
         synopsis_title_element = soup.find("span", {"id": "Synopsis"})
         if synopsis_title_element is not None:
-            synopsis_element = synopsis_title_element.find_parent("h2").find_next_sibling("dl")
+            synopsis_element = synopsis_title_element.find_parent(
+                "h2"
+            ).find_next_sibling("dl")
             if synopsis_element is not None:
                 return synopsis_element.get_text(" ", strip=True)
 
         summary_title_element = soup.find("span", {"id": "Summary"})
         if summary_title_element is not None:
-            summary_element = summary_title_element.find_parent("h2").find_next_sibling("dl")
+            summary_element = summary_title_element.find_parent("h2").find_next_sibling(
+                "dl"
+            )
             if summary_element is not None:
                 return summary_element.get_text(" ", strip=True)
         else:
             return ""
-        
-    
 
     def scrape_episodes_data(self, skip_existing_episodes: bool = False) -> None:
 
@@ -227,5 +246,3 @@ if __name__ == "__main__":
     scraper = WikiSimpsonScraper()
     scraper.scrape_episodes_links()
     scraper.scrape_episodes_data(skip_existing_episodes=True)
-
-

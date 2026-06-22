@@ -6,16 +6,17 @@ It extracts the unique users
 import os
 import pandas as pd
 
+SCRAPED_EPISODE_REVIEWS_DIR = "./scraper/tmp/episodes_reviews"
+REVIEWERS_PATH = "./etl/tmp/reviewers.csv"
 
-def build_reviewers_table(
-    scraped_episode_reviews_dir: str, reviewers_path: str
-) -> None:
+
+def build_reviewers()-> None:
     """Builds the reviewers table from the scraped reviews data."""
 
     # List all reviews and load them into a dataframe
     review_files = [
-        os.path.join(scraped_episode_reviews_dir, f)
-        for f in os.listdir(scraped_episode_reviews_dir)
+        os.path.join(SCRAPED_EPISODE_REVIEWS_DIR, f)
+        for f in os.listdir(SCRAPED_EPISODE_REVIEWS_DIR)
         if f.endswith(".csv")
     ]
     df_reviews = pd.concat(
@@ -28,12 +29,10 @@ def build_reviewers_table(
     )
 
     # Save the reviewers table
-    os.makedirs(os.path.dirname(reviewers_path), exist_ok=True)
-    df_reviewers.to_csv(reviewers_path, index=False, sep="|")
+    os.makedirs(os.path.dirname(REVIEWERS_PATH), exist_ok=True)
+    df_reviewers.to_csv(REVIEWERS_PATH, index=False, sep="|")
 
 
 if __name__ == "__main__":
-    scraped_episode_reviews_dir = "./scraper/tmp/episodes_reviews"
-    reviewers_path = "./etl/tmp/reviewers.csv"
 
-    build_reviewers_table(scraped_episode_reviews_dir, reviewers_path)
+    build_reviewers()

@@ -57,21 +57,9 @@ def create_episode_key(episode_name: str) -> str:
 
     # Characters to be deleted
     chars_to_delete = [
-        " ",
-        ",",
-        ":",
-        "-",
-        "(",
-        ")",
-        ".",
-        "'",
-        '"',
-        "&",
-        "!",
-        "?",
-        "¡",
-        "-",
-        "*",
+        " ",  ",", ":", "-", "(",
+        ")",  ".", "'", '"', "&",
+        "!",  "?", "¡", "-",  "*",
     ]
 
     # Cahracters that need to be replaced

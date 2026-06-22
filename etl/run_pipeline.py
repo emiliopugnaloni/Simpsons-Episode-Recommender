@@ -3,8 +3,6 @@ from etl.build_reviews import build_reviews
 from etl.build_reviewers import build_reviewers
 from etl.build_database import build_database
 
-import pandas as pd
-
 if __name__ == "__main__":
     build_episodes()
     build_reviews()

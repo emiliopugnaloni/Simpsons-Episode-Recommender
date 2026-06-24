@@ -8,10 +8,17 @@ The scraping and data-processing layers are the foundation for a later applicati
 
 ## Project Structure
 
-Current and planned structure:
+Current structure:
 
 ```text
 Simpsons-Episode-Recommender/
+├── app/
+│   ├── fastapi_app.py
+│   ├── recommendation_algorithms.py
+│   ├── recommender_db.py
+│   ├── templates/
+│   │   ├── login.html
+│   │   └── recomendaciones.html
 ├── scraper/
 │   ├── nohomer_scraper.py
 │   ├── wikisimpsons_scraper.py
@@ -32,6 +39,7 @@ Simpsons-Episode-Recommender/
 
 Notes:
 
+1. `app/` contains the FastAPI web app, recommendation algorithms, and DB access helpers.
 1. `scraper/` collects raw data from NoHomers (reviews) and WikiSimpsons (episode metadata).
 2. `etl/` transforms scraped data into datasets and loads them into SQLite.
 3. `tests/` contains the automated test suite.
@@ -64,11 +72,34 @@ Run the entire pipeline:
 python -m etl.run_pipeline
 ```
 
+## Web App (FastAPI)
+
+The application layer is implemented in `app/` and is split into:
+
+- `fastapi_app.py`: FastAPI app with endpoints for login, recommendations, reset, and change-user flow.
+- `recommender_db.py`: database helper
+- `recommendation_algorithms.py`: recommendation algorithms available to use.
+
+### Recommendation Logic
+
+- The app recommends episodes the user has not interacted with yet and returns a small top list.
+- By default, recommendations are ordered by strong community ratings; an alternative mode prioritizes frequently well-rated episodes.
+- It would be improved..
+
+Run the web app from project root:
+
+```bash
+uvicorn app.fastapi_app:app --reload
+```
+
 ## Current Status
 
 ✓ Scrapers: Both NoHomers and WikiSimpsons active
+
 ✓ ETL: Full pipeline implemented (episodes, reviews, reviewers)
+
 ✓ Database: SQLite loader complete
 
-Next: Recommender application and model training
+✓ App: FastAPI web interface with login, recommendations, reset, and change-user flow
 
+Next: Improve recommendation algorithms and model training

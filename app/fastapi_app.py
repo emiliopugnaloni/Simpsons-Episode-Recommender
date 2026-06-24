@@ -20,7 +20,7 @@ async def login_get(request: Request):
     """Render login page or redirect to recommendations if user is already set."""
     username = request.cookies.get("username")
     if username:
-        return RedirectResponse(url="/recomendaciones", status_code=303)
+        return RedirectResponse(url="/recommendations", status_code=303)
 
     return templates.TemplateResponse("login.html", {"request": request})
 
@@ -39,13 +39,13 @@ async def login_post(request: Request):
         )
 
     recommender_db.create_user(username)
-    response = RedirectResponse(url="/recomendaciones", status_code=303)
+    response = RedirectResponse(url="/recommendations", status_code=303)
     response.set_cookie("username", username)
     return response
 
 
-@app.get("/recomendaciones", response_class=HTMLResponse)
-async def recomendaciones_get(request: Request):
+@app.get("/recommendations", response_class=HTMLResponse)
+async def recommendations_get(request: Request):
     """Show recommendation cards for the active user."""
     username = request.cookies.get("username")
     if not username:
@@ -61,7 +61,7 @@ async def recomendaciones_get(request: Request):
     cant_ignorados = len(recommender_db.get_ignored_episodes(username))
 
     return templates.TemplateResponse(
-        "recomendaciones.html",
+        "recommendations.html",
         {
             "request": request,
             "episodes": episodes,
@@ -72,8 +72,8 @@ async def recomendaciones_get(request: Request):
     )
 
 
-@app.post("/recomendaciones", response_class=HTMLResponse)
-async def recomendaciones_post(request: Request):
+@app.post("/recommendations", response_class=HTMLResponse)
+async def recommendations_post(request: Request):
     """Save submitted ratings and return a refreshed recommendations page."""
     username = request.cookies.get("username")
     if not username:
@@ -94,7 +94,7 @@ async def recomendaciones_post(request: Request):
     cant_ignorados = len(recommender_db.get_ignored_episodes(username))
 
     return templates.TemplateResponse(
-        "recomendaciones.html",
+        "recommendations.html",
         {
             "request": request,
             "episodes": episodes,
@@ -112,7 +112,7 @@ async def reset(request: Request):
     if username:
         recommender_db.reset_user(username)
 
-    return RedirectResponse(url="/recomendaciones", status_code=303)
+    return RedirectResponse(url="/recommendations", status_code=303)
 
 
 @app.get("/change-user")

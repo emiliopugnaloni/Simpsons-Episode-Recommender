@@ -18,7 +18,7 @@ Simpsons-Episode-Recommender/
 │   ├── recommender_db.py
 │   ├── templates/
 │   │   ├── login.html
-│   │   └── recomendaciones.html
+│   │   └── recommendations.html
 ├── scraper/
 │   ├── nohomer_scraper.py
 │   ├── wikisimpsons_scraper.py

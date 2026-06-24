@@ -151,18 +151,26 @@ def _extract_season_number(row):
     as "[S11]", "[S9]", ["D+"] (for Disney+). We need to extract the number using regex"""
 
     value = row.get("season_number")[0]
-    if value == 100:
+    if value == "D+":
         return value
     else:
         match = re.search(r"S(\d+)", value)
         return match.group(1) if match else None
+
+def _extract_first_value_from_list(value):
+    """Extract the first value from a list if the value is a list, otherwise return the value itself."""
+    if isinstance(value, list):
+        return value[0]
+    return value
 
 
 def clean_episode_data(episodes_data: pd.DataFrame) -> pd.DataFrame:
     """Clean episode data by joining showrunners and extracting season number."""
 
     episodes_data["show_runners"] = episodes_data.apply(_join_showrunners, axis=1)
-    episodes_data["season_nr"] = episodes_data.apply(_extract_season_number, axis=1)
+    episodes_data["season"] = episodes_data.apply(_extract_season_number, axis=1)
+    episodes_data["episode_number"] = episodes_data["episode_number"].apply(_extract_first_value_from_list)
+    episodes_data["original_airdate"] = episodes_data["original_airdate"].apply(_extract_first_value_from_list)
 
     return episodes_data
 
@@ -213,7 +221,7 @@ def select_relevant_columns(episodes_data: pd.DataFrame) -> pd.DataFrame:
     cols = [
         "episode_name",
         "main_image_url",
-        "season_nr",
+        "season",
         "episode_number",
         "original_airdate",
         "written_by",

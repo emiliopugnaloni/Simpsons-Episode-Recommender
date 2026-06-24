@@ -80,6 +80,8 @@ The application layer is implemented in `app/` and is split into:
 - `recommender_db.py`: database helper
 - `recommendation_algorithms.py`: recommendation algorithms available to use.
 
+![Simpsons recommender UI](recommender.png)
+
 ### Recommendation Logic
 
 - The app recommends episodes the user has not interacted with yet and returns a small top list.
